@@ -18,17 +18,25 @@ import com.priamoryki.discordbot.commands.music.modifiers.*;
 import com.priamoryki.discordbot.commands.music.queue.*;
 import com.priamoryki.discordbot.commands.sounds.*;
 import com.priamoryki.discordbot.utils.DataSource;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.stereotype.Component;
 
 /**
  * @author Pavel Lymar
  */
-public class Bot {
-    public static void main(String[] args) {
+@Component
+public class Bot implements CommandLineRunner {
+    private final DataSource data;
+    private final MusicManager musicManager;
+
+    public Bot(DataSource data, MusicManager musicManager) {
+        this.data = data;
+        this.musicManager = musicManager;
+    }
+
+    public void start() {
         try {
-            DataSource data = new DataSource();
-
-            MusicManager musicManager = new MusicManager(data);
-
             CommandsStorage commands = new CommandsStorage(
                     // Chat commands
                     new Clear(data),
@@ -81,5 +89,10 @@ public class Bot {
         } catch (Exception e) {
             System.err.println("Error on bot start occurred: " + e.getMessage());
         }
+    }
+
+    @Override
+    public void run(String... args) {
+        start();
     }
 }

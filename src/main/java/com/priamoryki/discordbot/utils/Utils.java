@@ -16,7 +16,9 @@ import java.util.stream.Collectors;
 /**
  * @author Pavel Lymar
  */
-public class Utils {
+public final class Utils {
+    public static final String UPDATED_PROPERTY = "entity-updated";
+
     public static boolean isUrl(String url) {
         try {
             new URL(url);

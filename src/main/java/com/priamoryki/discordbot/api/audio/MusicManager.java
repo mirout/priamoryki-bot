@@ -8,6 +8,7 @@ import com.sedmelluq.discord.lavaplayer.source.soundcloud.SoundCloudAudioSourceM
 import com.sedmelluq.discord.lavaplayer.source.twitch.TwitchStreamAudioSourceManager;
 import com.sedmelluq.discord.lavaplayer.source.youtube.YoutubeAudioSourceManager;
 import net.dv8tion.jda.api.entities.Guild;
+import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,8 +16,9 @@ import java.util.Map;
 /**
  * @author Pavel Lymar
  */
+@Service
 public class MusicManager {
-    private final DataSource data;
+    public final DataSource data;
     private final Map<Long, GuildMusicManager> managers;
     private final AudioPlayerManager audioPlayerManager;
 

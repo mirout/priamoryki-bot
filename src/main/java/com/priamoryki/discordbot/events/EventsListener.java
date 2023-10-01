@@ -4,7 +4,9 @@ import com.priamoryki.discordbot.commands.Command;
 import com.priamoryki.discordbot.commands.CommandException;
 import com.priamoryki.discordbot.commands.CommandsStorage;
 import com.priamoryki.discordbot.entities.ServerInfo;
+import com.priamoryki.discordbot.repositories.ServersRepository;
 import com.priamoryki.discordbot.utils.DataSource;
+import com.priamoryki.discordbot.utils.sync.YaDiskFileLoader;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.entities.Message;
@@ -18,6 +20,8 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,12 +32,15 @@ import java.util.Objects;
  * @author Pavel Lymar
  */
 public class EventsListener extends ListenerAdapter {
+    private final Logger logger = LoggerFactory.getLogger(EventsListener.class);
     private final DataSource data;
     private final CommandsStorage commands;
+    private final ServersRepository serversRepository;
 
-    public EventsListener(DataSource data, CommandsStorage commands) {
+    public EventsListener(DataSource data, CommandsStorage commands, ServersRepository serversRepository) {
         this.data = data;
         this.commands = commands;
+        this.serversRepository = serversRepository;
     }
 
     @Override
@@ -49,7 +56,7 @@ public class EventsListener extends ListenerAdapter {
     private void createGuildAttributes(Guild guild) {
         ServerInfo serverInfo = new ServerInfo();
         serverInfo.setServerId(guild.getIdLong());
-        data.getServersRepository().update(serverInfo);
+        serversRepository.update(serverInfo);
         Message message = data.getOrCreateMainMessage(guild);
         data.getOrCreatePlayerMessage(guild);
         try {
@@ -105,6 +112,8 @@ public class EventsListener extends ListenerAdapter {
         Command command = commands.getCommand(splittedMessage.get(0));
         if (command != null && command.isAvailableFromChat()) {
             try {
+                System.out.println("TRASH");
+                logger.info("got message \"{}\"", messageText);
                 command.executeWithPermissions(guild, member, splittedMessage.subList(1, splittedMessage.size()));
             } catch (CommandException e) {
                 message.reply(e.getMessage()).queue();
@@ -118,6 +127,7 @@ public class EventsListener extends ListenerAdapter {
 
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
+        logger.info("got command /{}", event.getName());
         Command command = commands.getCommand(event.getName());
         if (command != null && command.isAvailableFromChat()) {
             List<String> args = new ArrayList<>();

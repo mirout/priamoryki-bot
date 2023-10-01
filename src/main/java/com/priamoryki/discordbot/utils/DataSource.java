@@ -7,10 +7,6 @@ import com.priamoryki.discordbot.events.EventsListener;
 import com.priamoryki.discordbot.repositories.ServersRepository;
 import com.priamoryki.discordbot.utils.messages.MainMessage;
 import com.priamoryki.discordbot.utils.messages.PlayerMessage;
-import com.priamoryki.discordbot.utils.sync.SyncService;
-import com.priamoryki.discordbot.utils.sync.YaDiskSyncService;
-import com.yandex.disk.rest.Credentials;
-import com.yandex.disk.rest.RestClient;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.entities.Guild;
@@ -18,62 +14,56 @@ import net.dv8tion.jda.api.entities.Message;
 import net.dv8tion.jda.api.entities.MessageHistory;
 import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
-import net.dv8tion.jda.api.interactions.commands.build.SlashCommandData;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import net.dv8tion.jda.api.utils.messages.MessageCreateBuilder;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.springframework.stereotype.Component;
 
-import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.Persistence;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author Pavel Lymar
  */
+@Component
 public class DataSource {
     private final long INVALID_ID = -1;
     private final String TOKEN_ENV_NAME = "TOKEN";
-    private final String YADISK_TOKEN_ENV_NAME = "YADISK_TOKEN";
     private final String SETTINGS_PATH = "data/config.json";
-    private final String DB_LOCAL_PATH = "data/servers.db";
-    private final String DB_CLOUD_PATH = "servers.db";
     private final ServersRepository serversRepository;
     private final JSONObject settings;
-    private final SyncService syncService;
     private JDA bot;
 
-    public DataSource() throws IOException, JSONException {
+    public DataSource(
+            ServersRepository serversRepository
+    ) throws IOException, JSONException {
         this.settings = new JSONObject(
                 new String(Files.readAllBytes(Paths.get(SETTINGS_PATH)))
         );
-        this.syncService = new YaDiskSyncService(
-                DB_LOCAL_PATH,
-                DB_CLOUD_PATH,
-                new RestClient(new Credentials("me", getYaDiskToken()))
-        );
-        this.syncService.load();
-        EntityManagerFactory factory = Persistence.createEntityManagerFactory("main");
-        EntityManager entityManager = factory.createEntityManager();
-        this.serversRepository = new ServersRepository(entityManager);
+        this.serversRepository = serversRepository;
     }
 
     public void setupBot(CommandsStorage commands) {
-        this.bot = JDABuilder.createDefault(getToken()).enableIntents(GatewayIntent.MESSAGE_CONTENT)
-                .addEventListeners(new EventsListener(this, commands))
+        this.bot = JDABuilder.createDefault(getToken())
+                .enableIntents(GatewayIntent.MESSAGE_CONTENT)
+                .addEventListeners(new EventsListener(this, commands, serversRepository))
                 .build();
-        List<SlashCommandData> result = new ArrayList<>();
-        commands.getCommands().stream().filter(Command::isAvailableFromChat).forEach(
-                command -> command.getNames().forEach(
-                        name -> result.add(Utils.commandToSlashCommand(name, command))
+        var result = commands
+                .getCommands()
+                .stream()
+                .filter(Command::isAvailableFromChat)
+                .flatMap(
+                    command -> command
+                            .getNames()
+                            .stream()
+                            .map(name -> Utils.commandToSlashCommand(name, command))
                 )
-        );
-        bot.updateCommands().addCommands(result).queue();
+                .toList();
+        bot.updateCommands()
+                .addCommands(result)
+                .queue();
     }
 
     private String parseSetting(String setting) {
@@ -98,14 +88,6 @@ public class DataSource {
 
     public String getPrefix() {
         return parseSetting("prefix");
-    }
-
-    public String getYaDiskToken() {
-        return System.getenv(YADISK_TOKEN_ENV_NAME);
-    }
-
-    public ServersRepository getServersRepository() {
-        return serversRepository;
     }
 
     public long getMainChannelId(long guildId) {
@@ -141,7 +123,6 @@ public class DataSource {
             ServerInfo serverInfo = serversRepository.getServerById(guild.getIdLong());
             serverInfo.setChannelId(channel.getIdLong());
             serversRepository.update(serverInfo);
-            syncService.upload();
         }
         return channel;
     }
@@ -158,7 +139,6 @@ public class DataSource {
             serverInfo.setMessageId(message.getIdLong());
             serversRepository.update(serverInfo);
             message.pin().complete();
-            syncService.upload();
         }
         return message;
     }
@@ -175,7 +155,6 @@ public class DataSource {
             serverInfo.setPlayerMessageId(message.getIdLong());
             serversRepository.update(serverInfo);
             message.pin().complete();
-            syncService.upload();
         }
         return message;
     }

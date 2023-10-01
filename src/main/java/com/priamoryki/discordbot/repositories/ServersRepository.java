@@ -1,14 +1,18 @@
 package com.priamoryki.discordbot.repositories;
 
 import com.priamoryki.discordbot.entities.ServerInfo;
+import org.springframework.stereotype.Repository;
 
 import javax.persistence.EntityManager;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.priamoryki.discordbot.utils.Utils.UPDATED_PROPERTY;
+
 /**
  * @author Pavel Lymar
  */
+@Repository
 public class ServersRepository {
     private final EntityManager manager;
 
@@ -32,5 +36,6 @@ public class ServersRepository {
         manager.getTransaction().begin();
         manager.persist(serverInfo);
         manager.getTransaction().commit();
+        manager.setProperty(UPDATED_PROPERTY, true);
     }
 }
